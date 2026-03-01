@@ -3,11 +3,14 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { Resend } from "resend";
 import { randomBytes } from "crypto";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: NextRequest) {
+  // Instantiate inside the handler so build-time module evaluation
+  // doesn't throw when RESEND_API_KEY is absent.
+  const resend = new Resend(process.env.RESEND_API_KEY);
   try {
-    const { email, topics, subscribeAll } = await req.json();
+    const { email, topics, subscribeAll, frequency: rawFrequency } = await req.json();
+    const validFrequencies = ["daily", "weekly", "monthly"];
+    const frequency = validFrequencies.includes(rawFrequency) ? rawFrequency : "daily";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Valid email required" }, { status: 400 });
@@ -32,6 +35,7 @@ export async function POST(req: NextRequest) {
         .update({
           topics: subscribeAll ? [] : topics,
           subscribe_all: subscribeAll ?? true,
+          frequency,
           confirmation_token: existing.confirmed ? existing.confirmation_token : confirmToken,
           unsubscribe_token: unsubToken,
           updated_at: new Date().toISOString(),
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest) {
         email,
         topics: subscribeAll ? [] : topics,
         subscribe_all: subscribeAll ?? true,
+        frequency,
         confirmed: false,
         confirmation_token: confirmToken,
         unsubscribe_token: unsubToken,

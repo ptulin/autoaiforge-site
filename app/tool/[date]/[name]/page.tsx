@@ -2,8 +2,13 @@ import { getAllTools, topicEmoji, topicColor } from "@/lib/github";
 import type { Tool } from "@/lib/github";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ShareButtons from "@/components/ShareButtons";
+import WatchToolButton from "@/components/WatchToolButton";
 
 export const revalidate = 3600;
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://aitools.disruptiveexperience.com";
 
 interface Props {
   params: Promise<{ date: string; name: string }>;
@@ -16,9 +21,26 @@ export async function generateMetadata({ params }: Props) {
     (t) => t.date === date && t.tool_name === name
   );
   if (!tool) return { title: "Tool Not Found" };
+
+  const toolUrl = `${SITE_URL}/tool/${date}/${name}`;
+  const ogImage = `${SITE_URL}/api/og?title=${encodeURIComponent(tool.display_name)}&topic=${encodeURIComponent(tool.topic)}`;
+
   return {
     title: `${tool.display_name} — AI Tools by AutoAIForge`,
     description: tool.description,
+    openGraph: {
+      title: tool.display_name,
+      description: tool.description,
+      type: "article",
+      url: toolUrl,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: tool.display_name,
+      description: tool.description,
+      images: [ogImage],
+    },
   };
 }
 
@@ -68,27 +90,39 @@ export default async function ToolDetailPage({ params }: Props) {
     year: "numeric",
   });
 
-  // Parse README sections
+  const toolUrl = `${SITE_URL}/tool/${date}/${name}`;
+  const toolSlug = `${date}/${name}`;
+
   const readmeSections = readme ? parseReadme(readme) : null;
+
+  const installSnippet = [
+    "git clone --depth 1 --filter=blob:none --sparse \\",
+    "  https://github.com/ptulin/autoaiforge.git",
+    "cd autoaiforge",
+    `git sparse-checkout set generated_tools/${tool.date}/${tool.tool_name}`,
+    `cd generated_tools/${tool.date}/${tool.tool_name}`,
+    "pip install -r requirements.txt 2>/dev/null || true",
+    `python ${tool.tool_name}.py`,
+  ].join("\n");
 
   return (
     <div className="min-h-screen grid-bg">
-      {/* Header */}
-      <header className="border-b border-[#1e2d4a] bg-[#050914]/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
+      {/* Breadcrumb nav */}
+      <div className="border-b border-[#1e2d4a] bg-[#050914]/60">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-3 text-sm">
           <Link
             href="/"
-            className="text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 text-sm"
+            className="text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             All Tools
           </Link>
-          <span className="text-[#1e2d4a]">·</span>
-          <span className="text-white text-sm font-medium truncate">{tool.display_name}</span>
+          <span className="text-[#1e2d4a]">›</span>
+          <span className="text-slate-400 truncate">{tool.display_name}</span>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         {/* Title block */}
@@ -134,48 +168,43 @@ export default async function ToolDetailPage({ params }: Props) {
               </svg>
               Download ZIP
             </a>
+            <WatchToolButton toolSlug={toolSlug} />
+          </div>
+
+          {/* Share */}
+          <div className="mt-4">
+            <ShareButtons url={toolUrl} title={tool.display_name} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* What it does */}
             {readmeSections?.whatItDoes && (
               <Section title="What It Does">
                 <div className="prose-dark"
                   dangerouslySetInnerHTML={{ __html: readmeSections.whatItDoes }} />
               </Section>
             )}
-
-            {/* Install */}
             {readmeSections?.installation && (
               <Section title="Installation">
                 <div className="prose-dark"
                   dangerouslySetInnerHTML={{ __html: readmeSections.installation }} />
               </Section>
             )}
-
-            {/* Usage */}
             {readmeSections?.usage && (
               <Section title="Usage">
                 <div className="prose-dark"
                   dangerouslySetInnerHTML={{ __html: readmeSections.usage }} />
               </Section>
             )}
-
-            {/* Code preview */}
             {code && (
               <Section title="Source Code">
-                <div className="relative">
-                  <pre className="bg-[#060d1f] border border-[#1e2d4a] rounded-lg p-4 overflow-x-auto text-xs text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto">
-                    <code>{code}</code>
-                  </pre>
-                </div>
+                <pre className="bg-[#060d1f] border border-[#1e2d4a] rounded-lg p-4 overflow-x-auto text-xs text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto">
+                  <code>{code}</code>
+                </pre>
               </Section>
             )}
-
-            {/* Full README fallback */}
             {readme && !readmeSections?.whatItDoes && (
               <Section title="README">
                 <div className="prose-dark"
@@ -186,7 +215,6 @@ export default async function ToolDetailPage({ params }: Props) {
 
           {/* Sidebar */}
           <div className="space-y-4">
-            {/* Quick info */}
             <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-5">
               <h3 className="text-white font-semibold mb-4">Details</h3>
               <dl className="space-y-3 text-sm">
@@ -217,29 +245,21 @@ export default async function ToolDetailPage({ params }: Props) {
               </dl>
             </div>
 
-            {/* Quick install */}
             <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-5">
               <h3 className="text-white font-semibold mb-3">Quick Install</h3>
               <p className="text-slate-500 text-xs mb-3">Clone just this tool:</p>
               <pre className="bg-[#060d1f] rounded-lg p-3 text-xs text-blue-300 overflow-x-auto whitespace-pre-wrap break-all">
-{`git clone --depth 1 --filter=blob:none --sparse \\
-  https://github.com/ptulin/autoaiforge.git
-cd autoaiforge
-git sparse-checkout set generated_tools/${tool.date}/${tool.tool_name}
-cd generated_tools/${tool.date}/${tool.tool_name}
-pip install -r requirements.txt 2>/dev/null || true
-python ${tool.tool_name}.py`}
+                {installSnippet}
               </pre>
             </div>
 
-            {/* Links */}
             <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-5">
               <h3 className="text-white font-semibold mb-3">Links</h3>
               <div className="space-y-2">
                 <a href={tool.github_url} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
                   <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+                    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
                   </svg>
                   View source on GitHub
                 </a>
@@ -285,27 +305,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/* ── Minimal markdown → HTML (no external deps) ──────────────────────────── */
 function markdownToHtml(md: string): string {
   return md
-    // Code blocks
     .replace(/```[\w]*\n([\s\S]*?)```/g, (_: string, c: string) =>
       `<pre class="bg-[#060d1f] border border-[#1e2d4a] rounded-lg p-4 overflow-x-auto text-xs text-slate-300 my-3"><code>${escHtml(c.trim())}</code></pre>`
     )
-    // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-[#060d1f] px-1.5 py-0.5 rounded text-blue-300 text-xs font-mono">$1</code>')
-    // Headers
     .replace(/^### (.+)$/gm, '<h3 class="text-white font-semibold text-base mt-5 mb-2">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-white font-semibold text-lg mt-6 mb-3">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-white font-bold text-xl mt-6 mb-3">$1</h1>')
-    // Bold
     .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
-    // Lists
     .replace(/^- (.+)$/gm, '<li class="text-slate-400 text-sm ml-4 list-disc mb-1">$1</li>')
     .replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="my-3">$&</ul>')
-    // Paragraphs
     .replace(/^(?!<[h|u|p|pre|li])(.+)$/gm, '<p class="text-slate-400 text-sm leading-relaxed mb-2">$1</p>')
-    // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
 }
 
@@ -313,7 +325,6 @@ function escHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/* ── Split README into named sections ────────────────────────────────────── */
 interface ReadmeSections {
   whatItDoes?: string;
   installation?: string;
@@ -322,7 +333,6 @@ interface ReadmeSections {
 
 function parseReadme(md: string): ReadmeSections {
   const sections: ReadmeSections = {};
-
   const sectionRegex = /^##\s+(.+)$/gm;
   const matches: Array<{ title: string; start: number }> = [];
   let m: RegExpExecArray | null;

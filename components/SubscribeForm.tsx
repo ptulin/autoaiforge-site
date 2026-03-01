@@ -4,12 +4,16 @@ import { useState } from "react";
 
 interface Props {
   topics: string[];
+  compact?: boolean;
 }
 
-export default function SubscribeForm({ topics }: Props) {
+type Frequency = "daily" | "weekly" | "monthly";
+
+export default function SubscribeForm({ topics, compact = false }: Props) {
   const [email, setEmail] = useState("");
   const [subscribeAll, setSubscribeAll] = useState(true);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [frequency, setFrequency] = useState<Frequency>("daily");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -33,6 +37,7 @@ export default function SubscribeForm({ topics }: Props) {
           email,
           topics: subscribeAll ? [] : selectedTopics,
           subscribeAll,
+          frequency,
         }),
       });
       const data = await res.json();
@@ -50,13 +55,45 @@ export default function SubscribeForm({ topics }: Props) {
     }
   };
 
+  const freqOptions: { value: Frequency; label: string; icon: string }[] = [
+    { value: "daily", label: "Daily", icon: "☀️" },
+    { value: "weekly", label: "Weekly", icon: "📅" },
+    { value: "monthly", label: "Monthly", icon: "🗓️" },
+  ];
+
+  /* ── Collapsed teaser (compact variant) ────────────────────────────── */
+  if (!isOpen && compact) {
+    return (
+      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl">📬</span>
+          <div>
+            <h3 className="text-white font-bold text-sm leading-tight">
+              Get AI Tool Digests
+            </h3>
+            <p className="text-slate-400 text-xs mt-0.5">
+              Daily, weekly, or monthly. Free.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(true)}
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors"
+        >
+          Subscribe Free →
+        </button>
+      </div>
+    );
+  }
+
+  /* ── Collapsed teaser (full / non-compact) ──────────────────────────── */
   if (!isOpen) {
     return (
       <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl p-6 text-center">
         <div className="text-3xl mb-3">📬</div>
-        <h3 className="text-white font-bold text-lg mb-2">Get Daily AI Tool Digests</h3>
+        <h3 className="text-white font-bold text-lg mb-2">Get AI Tool Digests</h3>
         <p className="text-slate-400 text-sm mb-4 max-w-md mx-auto">
-          New AI tools every morning — curated by AutoAIForge. Free, no spam, unsubscribe anytime.
+          New AI tools every morning — curated by AutoAIForge. Daily, weekly, or monthly. Free.
         </p>
         <button
           onClick={() => setIsOpen(true)}
@@ -68,16 +105,24 @@ export default function SubscribeForm({ topics }: Props) {
     );
   }
 
+  /* ── Expanded form ──────────────────────────────────────────────────── */
   return (
-    <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className={`bg-gradient-to-br from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl ${
+        compact ? "p-5" : "p-6"
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-white font-bold text-lg">📬 Subscribe to Daily Digest</h3>
-          <p className="text-slate-400 text-sm">Fresh AI tools every morning, free</p>
+          <h3 className={`text-white font-bold ${compact ? "text-sm" : "text-lg"}`}>
+            📬 Subscribe to Digest
+          </h3>
+          <p className="text-slate-400 text-xs mt-0.5">Free, no spam, unsubscribe anytime</p>
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="text-slate-500 hover:text-white text-xl leading-none"
+          className="text-slate-500 hover:text-white text-xl leading-none ml-2 shrink-0"
         >
           ×
         </button>
@@ -86,26 +131,49 @@ export default function SubscribeForm({ topics }: Props) {
       {status === "success" ? (
         <div className="text-center py-4">
           <div className="text-4xl mb-3">🎉</div>
-          <p className="text-green-400 font-semibold">{message}</p>
+          <p className="text-green-400 font-semibold text-sm">{message}</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Email */}
           <input
             type="email"
             placeholder="your@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-[#0d1424] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
+            className="w-full bg-[#0d1424] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-3 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
           />
+
+          {/* Frequency */}
+          <div>
+            <p className="text-xs text-slate-400 mb-2">Email frequency</p>
+            <div className="flex gap-1.5">
+              {freqOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFrequency(opt.value)}
+                  className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    frequency === opt.value
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-[#0d1424] border-[#1e2d4a] text-slate-400 hover:border-blue-500/40 hover:text-white"
+                  }`}
+                >
+                  {opt.icon} {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Topic selection */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <label className="flex items-center gap-2 cursor-pointer group">
+            <p className="text-xs text-slate-400 mb-2">Topics</p>
+            <div className="flex items-center gap-3 mb-2">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <div
                   onClick={() => { setSubscribeAll(true); setSelectedTopics([]); }}
-                  className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
+                  className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
                     subscribeAll
                       ? "bg-blue-600 border-blue-600"
                       : "border-slate-600 bg-transparent"
@@ -113,12 +181,12 @@ export default function SubscribeForm({ topics }: Props) {
                 >
                   {subscribeAll && <span className="text-white text-xs">✓</span>}
                 </div>
-                <span className="text-slate-300 text-sm">All topics (recommended)</span>
+                <span className="text-slate-300 text-xs">All topics</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <div
                   onClick={() => setSubscribeAll(false)}
-                  className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
+                  className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
                     !subscribeAll
                       ? "bg-blue-600 border-blue-600"
                       : "border-slate-600 bg-transparent"
@@ -126,18 +194,18 @@ export default function SubscribeForm({ topics }: Props) {
                 >
                   {!subscribeAll && <span className="text-white text-xs">✓</span>}
                 </div>
-                <span className="text-slate-300 text-sm">Choose topics</span>
+                <span className="text-slate-300 text-xs">Choose topics</span>
               </label>
             </div>
 
             {!subscribeAll && topics.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-3 bg-[#0d1424] border border-[#1e2d4a] rounded-lg">
+              <div className="flex flex-wrap gap-1.5 p-2.5 bg-[#0d1424] border border-[#1e2d4a] rounded-lg">
                 {topics.map((topic) => (
                   <button
                     key={topic}
                     type="button"
                     onClick={() => toggleTopic(topic)}
-                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
                       selectedTopics.includes(topic)
                         ? "bg-blue-600 border-blue-500 text-white"
                         : "bg-transparent border-[#1e2d4a] text-slate-400 hover:border-blue-500/40 hover:text-white"
@@ -164,10 +232,6 @@ export default function SubscribeForm({ topics }: Props) {
           >
             {status === "loading" ? "Subscribing…" : "Subscribe Free →"}
           </button>
-
-          <p className="text-slate-600 text-xs text-center">
-            No spam. Unsubscribe anytime.
-          </p>
         </form>
       )}
     </div>
