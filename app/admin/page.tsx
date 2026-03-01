@@ -1,0 +1,224 @@
+"use client";
+
+import { useState, useEffect } from "react";
+
+interface Subscriber {
+  id: string;
+  email: string;
+  confirmed: boolean;
+  subscribe_all: boolean;
+  topics: string[] | null;
+  created_at: string;
+}
+
+export default function AdminPage() {
+  const [secret, setSecret] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"all" | "confirmed" | "pending">("all");
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/subscribers?secret=${encodeURIComponent(secret)}`);
+      if (!res.ok) {
+        setError("Invalid secret");
+        return;
+      }
+      const data = await res.json();
+      setSubscribers(data.subscribers);
+      setAuthed(true);
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/subscribers?secret=${encodeURIComponent(secret)}`);
+      const data = await res.json();
+      setSubscribers(data.subscribers);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteSubscriber(id: string, email: string) {
+    if (!confirm(`Delete ${email}?`)) return;
+    const res = await fetch(`/api/admin/subscribers?secret=${encodeURIComponent(secret)}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setSubscribers((prev) => prev.filter((s) => s.id !== id));
+    }
+  }
+
+  const filtered = subscribers.filter((s) => {
+    if (filter === "confirmed") return s.confirmed;
+    if (filter === "pending") return !s.confirmed;
+    return true;
+  });
+
+  const confirmedCount = subscribers.filter((s) => s.confirmed).length;
+
+  if (!authed) {
+    return (
+      <div className="min-h-screen grid-bg flex items-center justify-center">
+        <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-3">🔐</div>
+            <h1 className="text-white font-bold text-xl">Admin Panel</h1>
+            <p className="text-slate-400 text-sm mt-1">AutoAIForge Subscribers</p>
+          </div>
+          <form onSubmit={login} className="space-y-4">
+            <input
+              type="password"
+              placeholder="Admin secret"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              required
+              className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
+            />
+            {error && <p className="text-red-400 text-xs">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+            >
+              {loading ? "Checking…" : "Login →"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen grid-bg">
+      <header className="border-b border-[#1e2d4a] bg-[#050914]/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🤖</span>
+            <h1 className="text-white font-bold">Admin — Subscribers</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400">
+              {confirmedCount} confirmed / {subscribers.length} total
+            </span>
+            <button
+              onClick={refresh}
+              disabled={loading}
+              className="text-xs bg-[#1e2d4a] hover:bg-[#263a5e] text-slate-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {loading ? "…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "Total", value: subscribers.length, color: "text-white" },
+            { label: "Confirmed", value: confirmedCount, color: "text-green-400" },
+            { label: "Pending", value: subscribers.length - confirmedCount, color: "text-yellow-400" },
+          ].map((s) => (
+            <div key={s.label} className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-4 text-center">
+              <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-slate-500 mt-1">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filter */}
+        <div className="flex gap-2 mb-4">
+          {(["all", "confirmed", "pending"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
+                filter === f
+                  ? "bg-blue-600 border-blue-500 text-white"
+                  : "bg-[#0d1424] border-[#1e2d4a] text-slate-400 hover:text-white"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        {/* Table */}
+        <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[#1e2d4a]">
+                <th className="text-left text-slate-400 font-medium px-4 py-3">Email</th>
+                <th className="text-left text-slate-400 font-medium px-4 py-3">Status</th>
+                <th className="text-left text-slate-400 font-medium px-4 py-3">Topics</th>
+                <th className="text-left text-slate-400 font-medium px-4 py-3">Joined</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-slate-500 py-12">
+                    No subscribers
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((sub) => (
+                  <tr key={sub.id} className="border-b border-[#1e2d4a] last:border-0 hover:bg-[#131d30] transition-colors">
+                    <td className="px-4 py-3 text-white font-mono text-xs">{sub.email}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          sub.confirmed
+                            ? "bg-green-900/40 text-green-400 border border-green-800/40"
+                            : "bg-yellow-900/40 text-yellow-400 border border-yellow-800/40"
+                        }`}
+                      >
+                        {sub.confirmed ? "✓ Confirmed" : "⏳ Pending"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">
+                      {sub.subscribe_all
+                        ? "All topics"
+                        : sub.topics?.join(", ") || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">
+                      {new Date(sub.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => deleteSubscriber(sub.id, sub.email)}
+                        className="text-slate-600 hover:text-red-400 transition-colors text-xs"
+                        title="Delete"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

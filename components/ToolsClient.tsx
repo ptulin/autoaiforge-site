@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import type { Tool } from "@/lib/github";
 import { getUniqueTopics, topicEmoji, topicColor } from "@/lib/github";
 import Link from "next/link";
+import SubscribeForm from "@/components/SubscribeForm";
 
 interface Props {
   tools: Tool[];
@@ -122,6 +123,11 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
               <div className="text-xs text-slate-500">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* ── Subscribe Banner ──────────────────────────────────────── */}
+        <div className="mb-8">
+          <SubscribeForm topics={topics} />
         </div>
 
         {/* ── Topic Filters ─────────────────────────────────────────── */}
