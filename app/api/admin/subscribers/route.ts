@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "changeme";
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 function isAuthorized(req: NextRequest) {
+  if (!ADMIN_SECRET) return false;
   const token =
     req.headers.get("x-admin-secret") ||
     req.nextUrl.searchParams.get("secret");

@@ -4,12 +4,24 @@ import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import Link from "next/link";
 
+type Tab = "user" | "admin";
+type AuthMode = "magic" | "password";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [adminSecret, setAdminSecret] = useState("");
-  const [tab, setTab] = useState<"user" | "admin">("user");
+  const [tab, setTab] = useState<Tab>("user");
+  const [authMode, setAuthMode] = useState<AuthMode>("magic");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  function resetState() {
+    setStatus("idle");
+    setMessage("");
+    setPassword("");
+  }
 
   /* ── Magic-link login ──────────────────────────────────────────── */
   async function handleMagicLink(e: React.FormEvent) {
@@ -35,13 +47,46 @@ export default function LoginPage() {
     }
   }
 
+  /* ── Email + Password ──────────────────────────────────────────── */
+  async function handlePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email || !password) return;
+    setStatus("loading");
+    setMessage("");
+    try {
+      const supabase = createSupabaseBrowserClient();
+
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setStatus("success");
+        setMessage("Account created! Check your email to confirm, then sign in.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          // If not found, suggest signing up
+          if (error.message.toLowerCase().includes("invalid login")) {
+            setStatus("error");
+            setMessage("Wrong email or password. New here? Switch to Sign Up below.");
+          } else {
+            throw error;
+          }
+          return;
+        }
+        window.location.href = "/profile";
+      }
+    } catch (err: unknown) {
+      setStatus("error");
+      setMessage(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
   /* ── Admin secret login ────────────────────────────────────────── */
   async function handleAdminLogin(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setMessage("");
     try {
-      // Verify secret by hitting admin API
       const res = await fetch(
         `/api/admin/subscribers?secret=${encodeURIComponent(adminSecret)}`
       );
@@ -50,7 +95,6 @@ export default function LoginPage() {
         setMessage("Invalid admin secret.");
         return;
       }
-      // Valid — store in sessionStorage and redirect
       sessionStorage.setItem("adminSecret", adminSecret);
       window.location.href = "/admin";
     } catch {
@@ -78,7 +122,7 @@ export default function LoginPage() {
           {(["user", "admin"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setStatus("idle"); setMessage(""); }}
+              onClick={() => { setTab(t); resetState(); }}
               className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
                 tab === t
                   ? "bg-blue-600 text-white"
@@ -92,45 +136,136 @@ export default function LoginPage() {
 
         <div className="bg-[#0d1424] border border-[#1e2d4a] rounded-2xl p-6">
           {tab === "user" ? (
-            /* ── User magic link ─────────────────────────────────── */
+            /* ── User: Magic Link or Password ───────────────────── */
             <>
-              {status === "success" ? (
-                <div className="text-center py-4">
-                  <div className="text-4xl mb-3">📬</div>
-                  <p className="text-green-400 font-semibold">{message}</p>
-                  <p className="text-slate-500 text-sm mt-2">
-                    Click the link in your email to access your profile.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleMagicLink} className="space-y-4">
-                  <div>
-                    <label className="block text-slate-400 text-sm mb-1.5">
-                      Your email address
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
-                    />
-                  </div>
-                  {status === "error" && (
-                    <p className="text-red-400 text-xs">{message}</p>
-                  )}
+              {/* Auth mode toggle */}
+              <div className="flex gap-2 mb-5">
+                {([
+                  { value: "magic" as const, label: "🔗 Magic Link" },
+                  { value: "password" as const, label: "🔑 Password" },
+                ]).map((opt) => (
                   <button
-                    type="submit"
-                    disabled={status === "loading"}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+                    key={opt.value}
+                    onClick={() => { setAuthMode(opt.value); resetState(); }}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      authMode === opt.value
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "bg-transparent border-[#1e2d4a] text-slate-400 hover:border-blue-500/40 hover:text-white"
+                    }`}
                   >
-                    {status === "loading" ? "Sending…" : "Send Magic Link →"}
+                    {opt.label}
                   </button>
-                  <p className="text-slate-600 text-xs text-center">
-                    No password needed. We'll email you a secure link.
-                  </p>
-                </form>
+                ))}
+              </div>
+
+              {/* ── Magic link form ─────────────────────────────── */}
+              {authMode === "magic" && (
+                <>
+                  {status === "success" ? (
+                    <div className="text-center py-4">
+                      <div className="text-4xl mb-3">📬</div>
+                      <p className="text-green-400 font-semibold">{message}</p>
+                      <p className="text-slate-500 text-sm mt-2">
+                        Click the link in your email to access your profile.
+                      </p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleMagicLink} className="space-y-4">
+                      <div>
+                        <label className="block text-slate-400 text-sm mb-1.5">
+                          Your email address
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="you@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
+                        />
+                      </div>
+                      {status === "error" && (
+                        <p className="text-red-400 text-xs">{message}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={status === "loading"}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+                      >
+                        {status === "loading" ? "Sending…" : "Send Magic Link →"}
+                      </button>
+                      <p className="text-slate-600 text-xs text-center">
+                        No password needed — we&apos;ll email you a secure one-click link.
+                      </p>
+                    </form>
+                  )}
+                </>
+              )}
+
+              {/* ── Password form ───────────────────────────────── */}
+              {authMode === "password" && (
+                <>
+                  {status === "success" ? (
+                    <div className="text-center py-4">
+                      <div className="text-4xl mb-3">✅</div>
+                      <p className="text-green-400 font-semibold">{message}</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handlePassword} className="space-y-4">
+                      <div>
+                        <label className="block text-slate-400 text-sm mb-1.5">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="you@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-sm mb-1.5">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
+                        />
+                      </div>
+                      {status === "error" && (
+                        <p className="text-red-400 text-xs">{message}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={status === "loading"}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+                      >
+                        {status === "loading"
+                          ? "Please wait…"
+                          : isSignUp
+                          ? "Create Account →"
+                          : "Sign In →"}
+                      </button>
+                      <p className="text-center text-xs text-slate-500">
+                        {isSignUp ? "Already have an account? " : "New here? "}
+                        <button
+                          type="button"
+                          onClick={() => { setIsSignUp(!isSignUp); resetState(); }}
+                          className="text-blue-400 hover:underline"
+                        >
+                          {isSignUp ? "Sign In" : "Create Account"}
+                        </button>
+                      </p>
+                    </form>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -148,6 +283,10 @@ export default function LoginPage() {
                   required
                   className="w-full bg-[#050914] border border-[#1e2d4a] focus:border-blue-500 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 outline-none transition-colors"
                 />
+                <p className="text-slate-600 text-xs mt-2">
+                  This is the <code className="text-slate-400">ADMIN_SECRET</code> value
+                  set in Vercel → Settings → Environment Variables.
+                </p>
               </div>
               {status === "error" && (
                 <p className="text-red-400 text-xs">{message}</p>
@@ -164,9 +303,8 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-4">
-          Not subscribed yet?{" "}
           <Link href="/" className="text-blue-400 hover:underline">
-            Subscribe for free
+            ← Back to tools
           </Link>
         </p>
       </div>

@@ -5,11 +5,12 @@ import { useState } from "react";
 interface Props {
   topics: string[];
   compact?: boolean;
+  onClose?: () => void;
 }
 
 type Frequency = "daily" | "weekly" | "monthly";
 
-export default function SubscribeForm({ topics, compact = false }: Props) {
+export default function SubscribeForm({ topics, compact = false, onClose }: Props) {
   const [email, setEmail] = useState("");
   const [subscribeAll, setSubscribeAll] = useState(true);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -45,6 +46,10 @@ export default function SubscribeForm({ topics, compact = false }: Props) {
         setStatus("success");
         setMessage(data.message || "Check your email to confirm!");
         setEmail("");
+        // Auto-close modal after success (if rendered inside a modal)
+        if (onClose) {
+          setTimeout(() => onClose(), 2000);
+        }
       } else {
         setStatus("error");
         setMessage(data.error || "Something went wrong");
@@ -62,7 +67,7 @@ export default function SubscribeForm({ topics, compact = false }: Props) {
   ];
 
   /* ── Collapsed teaser (compact variant) ────────────────────────────── */
-  if (!isOpen && compact) {
+  if (!isOpen && compact && !onClose) {
     return (
       <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl p-5">
         <div className="flex items-start gap-3 mb-3">
@@ -87,7 +92,7 @@ export default function SubscribeForm({ topics, compact = false }: Props) {
   }
 
   /* ── Collapsed teaser (full / non-compact) ──────────────────────────── */
-  if (!isOpen) {
+  if (!isOpen && !onClose) {
     return (
       <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-2xl p-6 text-center">
         <div className="text-3xl mb-3">📬</div>
@@ -121,7 +126,7 @@ export default function SubscribeForm({ topics, compact = false }: Props) {
           <p className="text-slate-400 text-xs mt-0.5">Free, no spam, unsubscribe anytime</p>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={() => onClose ? onClose() : setIsOpen(false)}
           className="text-slate-500 hover:text-white text-xl leading-none ml-2 shrink-0"
         >
           ×

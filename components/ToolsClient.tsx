@@ -4,7 +4,8 @@ import { useState, useMemo } from "react";
 import type { Tool } from "@/lib/github";
 import { getUniqueTopics, topicEmoji, topicColor } from "@/lib/github";
 import Link from "next/link";
-import SubscribeForm from "@/components/SubscribeForm";
+import SubscribeModal from "@/components/SubscribeModal";
+import ShareButtons from "@/components/ShareButtons";
 
 interface Props {
   tools: Tool[];
@@ -16,6 +17,7 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
   const [search, setSearch] = useState("");
   const [activeTopic, setActiveTopic] = useState<string>("All");
   const [activeDate, setActiveDate] = useState<string>("All");
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
 
   const topics = useMemo(() => getUniqueTopics(tools), [tools]);
   const dates = useMemo(() => {
@@ -59,11 +61,21 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
           AI Developer Tools,{" "}
           <span className="text-blue-400">Generated Nightly</span>
         </h1>
-        <p className="text-slate-400 text-lg max-w-2xl mb-6">
+        <p className="text-slate-400 text-lg max-w-2xl mb-4">
           Every night, AutoAIForge scrapes trending AI news, identifies hot
           topics, and builds open-source Python tools — automatically tested
           and published. Free to use, fork, and contribute.
         </p>
+
+        {/* Share row */}
+        <div className="flex items-center gap-3 mb-6">
+          <span className="text-slate-500 text-xs">Share:</span>
+          <ShareButtons
+            url="https://aitools.disruptiveexperience.com"
+            title="AI Developer Tools, Generated Nightly — AutoAIForge"
+            compact
+          />
+        </div>
 
         {/* Stats + Subscribe — all five boxes in one row on desktop */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
@@ -82,7 +94,15 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
               <div className="text-xs text-slate-500">{s.label}</div>
             </div>
           ))}
-          <SubscribeForm topics={topics} compact />
+          {/* Subscribe CTA tile — opens a modal, never expands inline */}
+          <button
+            onClick={() => setShowSubscribeModal(true)}
+            className="bg-gradient-to-br from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-xl p-4 text-left hover:border-blue-500/40 transition-colors w-full"
+          >
+            <div className="text-2xl mb-1">📬</div>
+            <div className="text-2xl font-bold text-white">Free</div>
+            <div className="text-xs text-slate-500">Subscribe to digest →</div>
+          </button>
         </div>
 
         {/* ── Search ────────────────────────────────────────────────── */}
@@ -189,6 +209,14 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
           </div>
         )}
       </section>
+
+      {/* ── Subscribe Modal ──────────────────────────────────────── */}
+      {showSubscribeModal && (
+        <SubscribeModal
+          topics={topics}
+          onClose={() => setShowSubscribeModal(false)}
+        />
+      )}
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer className="border-t border-[#1e2d4a] mt-16 py-8">

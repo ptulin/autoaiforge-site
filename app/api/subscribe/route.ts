@@ -6,6 +6,9 @@ import { randomBytes } from "crypto";
 export async function POST(req: NextRequest) {
   // Instantiate inside the handler so build-time module evaluation
   // doesn't throw when RESEND_API_KEY is absent.
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[subscribe] RESEND_API_KEY is not configured");
+  }
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     const { email, topics, subscribeAll, frequency: rawFrequency } = await req.json();
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aitools.disruptiveexperience.com";
     const confirmUrl = `${siteUrl}/api/confirm?token=${confirmToken}&email=${encodeURIComponent(email)}`;
 
-    await resend.emails.send({
+    const { error: emailError } = await resend.emails.send({
       from: "AutoAIForge <noreply@disruptiveexperience.com>",
       to: email,
       subject: "Confirm your AutoAIForge subscription",
@@ -95,6 +98,15 @@ export async function POST(req: NextRequest) {
         </html>
       `,
     });
+
+    if (emailError) {
+      console.error("[subscribe] Resend error:", emailError);
+      // Subscriber is saved, but email failed — inform user
+      return NextResponse.json({
+        message:
+          "You're subscribed! However, the confirmation email failed to send. Please contact support if this persists.",
+      });
+    }
 
     return NextResponse.json({ message: "Check your email to confirm!" });
   } catch (err) {
