@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     // Check if already subscribed
     const { data: existing } = await supabase
       .from("subscribers")
-      .select("id, confirmed")
+      .select("id, confirmed, confirmation_token")
       .eq("email", email)
       .single();
 
