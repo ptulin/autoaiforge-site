@@ -48,50 +48,41 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
     <div className="min-h-screen grid-bg">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-6">
-        {/* Two-column layout: headline left, subscribe right */}
-        <div className="flex flex-col lg:flex-row gap-8 mb-8">
-          {/* Left: Headline + Description */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="pulse-dot w-2 h-2 rounded-full bg-green-400 inline-block" />
-              <span className="text-xs text-green-400 font-medium uppercase tracking-wider">
-                Updated daily · Last run {updatedStr}
-              </span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-              AI Developer Tools,{" "}
-              <span className="text-blue-400">Generated Nightly</span>
-            </h1>
-            <p className="text-slate-400 text-lg max-w-2xl mb-6">
-              Every night, AutoAIForge scrapes trending AI news, identifies hot
-              topics, and builds open-source Python tools — automatically tested
-              and published. Free to use, fork, and contribute.
-            </p>
+        {/* Headline + Description */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="pulse-dot w-2 h-2 rounded-full bg-green-400 inline-block" />
+          <span className="text-xs text-green-400 font-medium uppercase tracking-wider">
+            Updated daily · Last run {updatedStr}
+          </span>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+          AI Developer Tools,{" "}
+          <span className="text-blue-400">Generated Nightly</span>
+        </h1>
+        <p className="text-slate-400 text-lg max-w-2xl mb-6">
+          Every night, AutoAIForge scrapes trending AI news, identifies hot
+          topics, and builds open-source Python tools — automatically tested
+          and published. Free to use, fork, and contribute.
+        </p>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Total Tools", value: totalTools, icon: "🔧" },
-                { label: "Topics Covered", value: topics.length, icon: "🔥" },
-                { label: "Run Dates", value: dates.length, icon: "📅" },
-                { label: "All Free", value: "100%", icon: "✅" },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-4"
-                >
-                  <div className="text-2xl mb-1">{s.icon}</div>
-                  <div className="text-2xl font-bold text-white">{s.value}</div>
-                  <div className="text-xs text-slate-500">{s.label}</div>
-                </div>
-              ))}
+        {/* Stats + Subscribe — all five boxes in one row on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+          {[
+            { label: "Total Tools", value: totalTools, icon: "🔧" },
+            { label: "Topics Covered", value: topics.length, icon: "🔥" },
+            { label: "Run Dates", value: dates.length, icon: "📅" },
+            { label: "All Free", value: "100%", icon: "✅" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-4"
+            >
+              <div className="text-2xl mb-1">{s.icon}</div>
+              <div className="text-2xl font-bold text-white">{s.value}</div>
+              <div className="text-xs text-slate-500">{s.label}</div>
             </div>
-          </div>
-
-          {/* Right: Subscribe Form */}
-          <div className="lg:w-80 xl:w-88 shrink-0">
-            <SubscribeForm topics={topics} compact />
-          </div>
+          ))}
+          <SubscribeForm topics={topics} compact />
         </div>
 
         {/* ── Search ────────────────────────────────────────────────── */}
