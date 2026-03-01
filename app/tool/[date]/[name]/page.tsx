@@ -6,6 +6,7 @@ import ShareButtons from "@/components/ShareButtons";
 import WatchToolButton from "@/components/WatchToolButton";
 import ToolActions from "@/components/ToolActions";
 import ToolStatsClient from "@/components/ToolStatsClient";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const revalidate = 3600;
 
@@ -24,8 +25,34 @@ export async function generateMetadata({ params }: Props) {
   );
   if (!tool) return { title: "Tool Not Found" };
 
+  // Fetch stats server-side for richer OG image
+  let ogRating = 0;
+  let ogDownloads = 0;
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: stats } = await supabase
+      .from("tool_stats")
+      .select("rating_avg, download_count")
+      .eq("tool_name", name)
+      .eq("tool_date", date)
+      .single();
+    if (stats) {
+      ogRating = Math.round((stats.rating_avg ?? 0) * 10) / 10;
+      ogDownloads = stats.download_count ?? 0;
+    }
+  } catch {
+    // stats unavailable — OG image will render without them
+  }
+
   const toolUrl = `${SITE_URL}/tool/${date}/${name}`;
-  const ogImage = `${SITE_URL}/api/og?title=${encodeURIComponent(tool.display_name)}&topic=${encodeURIComponent(tool.topic)}`;
+  const descSnippet = tool.description ? tool.description.slice(0, 120) : "";
+  const ogImage =
+    `${SITE_URL}/api/og` +
+    `?title=${encodeURIComponent(tool.display_name)}` +
+    `&topic=${encodeURIComponent(tool.topic)}` +
+    `&rating=${ogRating}` +
+    `&downloads=${ogDownloads}` +
+    `&desc=${encodeURIComponent(descSnippet)}`;
 
   return {
     title: `${tool.display_name} — AI Tools by AutoAIForge`,
