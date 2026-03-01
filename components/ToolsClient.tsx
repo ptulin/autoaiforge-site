@@ -375,28 +375,36 @@ function ToolCard({
         )}
       </div>
 
-      {/* Community stats (stars + downloads) — only shown when data exists */}
-      {stats && (stats.rating_count > 0 || stats.download_count > 0) && (
-        <div className="flex items-center gap-4 text-xs border-t border-[#1e2d4a] pt-2">
-          {stats.rating_count > 0 && (
-            <span className="flex items-center gap-1">
-              <span className="text-yellow-400">★</span>
-              <span className="text-slate-300 font-medium">
-                {stats.rating_avg.toFixed(1)}
-              </span>
-              <span className="text-slate-600">({stats.rating_count})</span>
-            </span>
+      {/* Community stats — always visible */}
+      <div className="flex items-center gap-4 text-xs border-t border-[#1e2d4a] pt-2">
+        {/* Star rating */}
+        <span className="flex items-center gap-1">
+          <span className={stats && stats.rating_count > 0 ? "text-yellow-400" : "text-slate-700"}>★</span>
+          {stats ? (
+            stats.rating_count > 0 ? (
+              <>
+                <span className="text-slate-300 font-medium">{stats.rating_avg.toFixed(1)}</span>
+                <span className="text-slate-600">({stats.rating_count})</span>
+              </>
+            ) : (
+              <span className="text-slate-600">No ratings</span>
+            )
+          ) : (
+            <span className="text-slate-700 animate-pulse">···</span>
           )}
-          {stats.download_count > 0 && (
-            <span className="flex items-center gap-1">
-              <span className="text-blue-400">⬇</span>
-              <span className="text-slate-300 font-medium">
-                {stats.download_count.toLocaleString()}
-              </span>
+        </span>
+        {/* Downloads */}
+        <span className="flex items-center gap-1">
+          <span className={stats && stats.download_count > 0 ? "text-blue-400" : "text-slate-700"}>⬇</span>
+          {stats ? (
+            <span className={stats.download_count > 0 ? "text-slate-300 font-medium" : "text-slate-600"}>
+              {stats.download_count > 0 ? stats.download_count.toLocaleString() : "0"}
             </span>
+          ) : (
+            <span className="text-slate-700 animate-pulse">···</span>
           )}
-        </div>
-      )}
+        </span>
+      </div>
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
