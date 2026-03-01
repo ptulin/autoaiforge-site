@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Tool } from "@/lib/github";
 import { getUniqueTopics, topicEmoji, topicColor } from "@/lib/github";
 import Link from "next/link";
 import SubscribeModal from "@/components/SubscribeModal";
 import ShareButtons from "@/components/ShareButtons";
+import type { ToolStatEntry } from "@/app/api/tools/stats/route";
+
+type SortBy = "newest" | "top_rated" | "most_downloaded";
 
 interface Props {
   tools: Tool[];
@@ -18,6 +21,18 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
   const [activeTopic, setActiveTopic] = useState<string>("All");
   const [activeDate, setActiveDate] = useState<string>("All");
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>("newest");
+  const [statsMap, setStatsMap] = useState<Record<string, ToolStatEntry>>({});
+
+  // Fetch community stats client-side so ISR cache doesn't go stale
+  useEffect(() => {
+    fetch("/api/tools/stats")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.stats) setStatsMap(data.stats);
+      })
+      .catch(() => {}); // fail silently — stats are decorative
+  }, []);
 
   const topics = useMemo(() => getUniqueTopics(tools), [tools]);
   const dates = useMemo(() => {
@@ -37,6 +52,30 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
       return matchesTopic && matchesDate && matchesSearch;
     });
   }, [tools, activeTopic, activeDate, search]);
+
+  // Apply sort on top of the filtered list
+  const sorted = useMemo(() => {
+    if (sortBy === "newest") return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const sa = statsMap[`${a.tool_name}|${a.date}`];
+      const sb = statsMap[`${b.tool_name}|${b.date}`];
+
+      if (sortBy === "top_rated") {
+        const ra = sa ? sa.rating_avg : 0;
+        const rb = sb ? sb.rating_avg : 0;
+        if (rb !== ra) return rb - ra;
+        // tie-break by vote count
+        return (sb ? sb.rating_count : 0) - (sa ? sa.rating_count : 0);
+      }
+
+      if (sortBy === "most_downloaded") {
+        return (sb ? sb.download_count : 0) - (sa ? sa.download_count : 0);
+      }
+
+      return 0;
+    });
+  }, [filtered, sortBy, statsMap]);
 
   const updatedStr = lastUpdated
     ? new Date(lastUpdated).toLocaleDateString("en-US", {
@@ -145,7 +184,7 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
 
         {/* Date filter */}
         {dates.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-4">
             <button
               onClick={() => setActiveDate("All")}
               className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
@@ -172,10 +211,34 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
           </div>
         )}
 
+        {/* ── Sort ──────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-slate-500 text-xs font-medium">Sort:</span>
+          {(
+            [
+              { value: "newest", label: "🕒 Newest" },
+              { value: "top_rated", label: "⭐ Top Rated" },
+              { value: "most_downloaded", label: "⬇️ Most Downloaded" },
+            ] as { value: SortBy; label: string }[]
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
+                sortBy === opt.value
+                  ? "bg-slate-700 border-slate-600 text-white"
+                  : "bg-transparent border-[#1e2d4a] text-slate-500 hover:text-white hover:border-slate-600"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {/* Results count */}
         <p className="text-sm text-slate-500 mb-6">
           Showing{" "}
-          <span className="text-white font-medium">{filtered.length}</span> of{" "}
+          <span className="text-white font-medium">{sorted.length}</span> of{" "}
           {tools.length} tools
           {search && (
             <span>
@@ -186,7 +249,7 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
         </p>
 
         {/* ── Tool Grid ─────────────────────────────────────────────── */}
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="text-center py-20 text-slate-500">
             <div className="text-4xl mb-3">🔍</div>
             <p>No tools match your filters.</p>
@@ -203,8 +266,13 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((tool, i) => (
-              <ToolCard key={`${tool.date}-${tool.tool_name}`} tool={tool} index={i} />
+            {sorted.map((tool, i) => (
+              <ToolCard
+                key={`${tool.date}-${tool.tool_name}`}
+                tool={tool}
+                index={i}
+                stats={statsMap[`${tool.tool_name}|${tool.date}`]}
+              />
             ))}
           </div>
         )}
@@ -256,7 +324,15 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
 }
 
 /* ── ToolCard ────────────────────────────────────────────────────────────── */
-function ToolCard({ tool, index }: { tool: Tool; index: number }) {
+function ToolCard({
+  tool,
+  index,
+  stats,
+}: {
+  tool: Tool;
+  index: number;
+  stats?: ToolStatEntry;
+}) {
   const color = topicColor(tool.topic);
   const emoji = topicEmoji(tool.topic);
   const dateStr = new Date(tool.generated).toLocaleDateString("en-US", {
@@ -298,6 +374,29 @@ function ToolCard({ tool, index }: { tool: Tool; index: number }) {
           <span className="text-slate-600">· {tool.loops_needed} fix loops</span>
         )}
       </div>
+
+      {/* Community stats (stars + downloads) — only shown when data exists */}
+      {stats && (stats.rating_count > 0 || stats.download_count > 0) && (
+        <div className="flex items-center gap-4 text-xs border-t border-[#1e2d4a] pt-2">
+          {stats.rating_count > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="text-yellow-400">★</span>
+              <span className="text-slate-300 font-medium">
+                {stats.rating_avg.toFixed(1)}
+              </span>
+              <span className="text-slate-600">({stats.rating_count})</span>
+            </span>
+          )}
+          {stats.download_count > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="text-blue-400">⬇</span>
+              <span className="text-slate-300 font-medium">
+                {stats.download_count.toLocaleString()}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
