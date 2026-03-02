@@ -116,8 +116,8 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
           />
         </div>
 
-        {/* Stats + Subscribe — all five boxes in one row on desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+        {/* Stats row — 4 boxes */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             { label: "Total Tools", value: totalTools, icon: "🔧" },
             { label: "Topics Covered", value: topics.length, icon: "🔥" },
@@ -133,14 +133,32 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
               <div className="text-xs text-slate-500">{s.label}</div>
             </div>
           ))}
-          {/* Subscribe CTA tile — opens a modal, never expands inline */}
+        </div>
+
+        {/* Subscribe CTA — full-width banner */}
+        <div className="relative overflow-hidden rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-purple-950/60 p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Subtle glow orb */}
+          <div className="absolute -top-10 -left-10 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">📬</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-blue-400">Free Daily Digest</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+              Get New AI Tools in Your Inbox
+            </h2>
+            <p className="text-slate-400 text-sm">
+              Every morning — fresh Python tools built from last night&apos;s AI news. No spam, unsubscribe anytime.
+            </p>
+          </div>
+
           <button
             onClick={() => setShowSubscribeModal(true)}
-            className="bg-gradient-to-br from-blue-900/30 to-purple-900/20 border border-blue-500/20 rounded-xl p-4 text-left hover:border-blue-500/40 transition-colors w-full"
+            className="relative shrink-0 px-8 py-3.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-lg transition-colors shadow-lg shadow-blue-900/40 whitespace-nowrap"
           >
-            <div className="text-2xl mb-1">📬</div>
-            <div className="text-2xl font-bold text-white">Free</div>
-            <div className="text-xs text-slate-500">Subscribe to digest →</div>
+            Subscribe Free →
           </button>
         </div>
 
