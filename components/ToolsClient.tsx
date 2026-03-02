@@ -89,50 +89,57 @@ export default function ToolsClient({ tools, lastUpdated, totalTools }: Props) {
     <div className="min-h-screen grid-bg">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-6">
-        {/* Headline + Description */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="pulse-dot w-2 h-2 rounded-full bg-green-400 inline-block" />
-          <span className="text-xs text-green-400 font-medium uppercase tracking-wider">
-            Updated daily · Last run {updatedStr}
-          </span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-          AI Developer Tools,{" "}
-          <span className="text-blue-400">Generated Nightly</span>
-        </h1>
-        <p className="text-slate-400 text-lg max-w-2xl mb-4">
-          Every night, AutoAIForge scrapes trending AI news, identifies hot
-          topics, and builds open-source Python tools — automatically tested
-          and published. Free to use, fork, and contribute.
-        </p>
+        {/* Two-column hero: copy left, 2×2 stats right */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-8 mb-4">
 
-        {/* Share row */}
-        <div className="flex items-center gap-3 mb-6">
-          <span className="text-slate-500 text-xs">Share:</span>
-          <ShareButtons
-            url="https://aitools.disruptiveexperience.com"
-            title="AI Developer Tools, Generated Nightly — AutoAIForge"
-            compact
-          />
-        </div>
-
-        {/* Stats row — 4 boxes */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-          {[
-            { label: "Total Tools", value: totalTools, icon: "🔧" },
-            { label: "Topics Covered", value: topics.length, icon: "🔥" },
-            { label: "Run Dates", value: dates.length, icon: "📅" },
-            { label: "All Free", value: "100%", icon: "✅" },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl p-4"
-            >
-              <div className="text-2xl mb-1">{s.icon}</div>
-              <div className="text-2xl font-bold text-white">{s.value}</div>
-              <div className="text-xs text-slate-500">{s.label}</div>
+          {/* Left — copy */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="pulse-dot w-2 h-2 rounded-full bg-green-400 inline-block" />
+              <span className="text-xs text-green-400 font-medium uppercase tracking-wider">
+                Updated daily · Last run {updatedStr}
+              </span>
             </div>
-          ))}
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+              AI Developer Tools,{" "}
+              <span className="text-blue-400">Generated Nightly</span>
+            </h1>
+            <p className="text-slate-400 text-base max-w-xl mb-4">
+              Every night, AutoAIForge scrapes trending AI news, identifies hot
+              topics, and builds open-source Python tools — automatically tested
+              and published. Free to use, fork, and contribute.
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-slate-500 text-xs">Share:</span>
+              <ShareButtons
+                url="https://aitools.disruptiveexperience.com"
+                title="AI Developer Tools, Generated Nightly — AutoAIForge"
+                compact
+              />
+            </div>
+          </div>
+
+          {/* Right — 2×2 stat tiles */}
+          <div className="grid grid-cols-2 gap-3 lg:w-80 shrink-0">
+            {[
+              { label: "Total Tools", value: totalTools, icon: "🔧" },
+              { label: "Topics Covered", value: topics.length, icon: "🔥" },
+              { label: "Run Dates", value: dates.length, icon: "📅" },
+              { label: "All Free", value: "100%", icon: "✅" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="bg-[#0d1424] border border-[#1e2d4a] rounded-xl px-4 py-3 flex items-center gap-3"
+              >
+                <span className="text-xl shrink-0">{s.icon}</span>
+                <div>
+                  <div className="text-xl font-bold text-white leading-tight">{s.value}</div>
+                  <div className="text-xs text-slate-500 leading-tight">{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
 
         {/* Subscribe CTA — full-width banner */}
