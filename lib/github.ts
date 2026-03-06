@@ -14,6 +14,7 @@ export interface Tool {
   loops_needed: number;
   github_url: string;
   readme_url: string;
+    zip_url?: string;
 }
 
 export interface ToolsIndex {
