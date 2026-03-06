@@ -87,15 +87,16 @@ export default function LoginPage() {
     setStatus("loading");
     setMessage("");
     try {
-      const res = await fetch(
-        `/api/admin/subscribers?secret=${encodeURIComponent(adminSecret)}`
-      );
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: adminSecret }),
+      });
       if (!res.ok) {
         setStatus("error");
         setMessage("Invalid admin secret.");
         return;
       }
-      sessionStorage.setItem("adminSecret", adminSecret);
       window.location.href = "/admin";
     } catch {
       setStatus("error");

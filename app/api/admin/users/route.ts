@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-
-function isAuthorized(req: NextRequest): boolean {
-  const token =
-    req.headers.get("x-admin-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return token === process.env.ADMIN_SECRET;
-}
+import { isAdminAuthorized } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isAdminAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = getSupabaseAdmin();
@@ -43,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isAdminAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id, email } = await req.json();

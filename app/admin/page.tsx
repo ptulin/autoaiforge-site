@@ -53,21 +53,28 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<"all" | "confirmed" | "pending">("all");
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
 
+  const handleUnauthorized = useCallback(() => {
+    setAuthed(false);
+    setError("Admin session expired. Please sign in again.");
+  }, []);
+
   /* ── Login ────────────────────────────────────────────────────────── */
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(
-        `/api/admin/subscribers?secret=${encodeURIComponent(secret)}`
-      );
-      if (!res.ok) { setError("Invalid secret"); return; }
-      const data = await res.json();
-      setSubscribers(data.subscribers);
+      const authRes = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret }),
+      });
+      if (!authRes.ok) {
+        setError("Invalid secret");
+        return;
+      }
+      await fetchSubscribers();
       setAuthed(true);
-      // Store for subsequent tab fetches
-      sessionStorage.setItem("adminSecret", secret);
     } catch { setError("Network error"); }
     finally { setLoading(false); }
   }
@@ -76,32 +83,62 @@ export default function AdminPage() {
   const fetchSubscribers = useCallback(async () => {
     setLoading(true);
     try {
-      const s = secret || sessionStorage.getItem("adminSecret") || "";
-      const res = await fetch(`/api/admin/subscribers?secret=${encodeURIComponent(s)}`);
+      const res = await fetch("/api/admin/subscribers");
+      if (res.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       const data = await res.json();
       setSubscribers(data.subscribers ?? []);
     } finally { setLoading(false); }
-  }, [secret]);
+  }, [handleUnauthorized]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const s = secret || sessionStorage.getItem("adminSecret") || "";
-      const res = await fetch(`/api/admin/users?secret=${encodeURIComponent(s)}`);
+      const res = await fetch("/api/admin/users");
+      if (res.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       const data = await res.json();
       setUsers(data.users ?? []);
     } finally { setLoading(false); }
-  }, [secret]);
+  }, [handleUnauthorized]);
 
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const s = secret || sessionStorage.getItem("adminSecret") || "";
-      const res = await fetch(`/api/admin/messages?secret=${encodeURIComponent(s)}`);
+      const res = await fetch("/api/admin/messages");
+      if (res.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       const data = await res.json();
       setMessages(data.messages ?? []);
     } finally { setLoading(false); }
-  }, [secret]);
+  }, [handleUnauthorized]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/admin/subscribers")
+      .then(async (res) => {
+        if (!mounted) return;
+        if (res.status === 401) {
+          setAuthed(false);
+          return;
+        }
+        const data = await res.json();
+        setSubscribers(data.subscribers ?? []);
+        setAuthed(true);
+      })
+      .catch(() => {
+        if (mounted) setAuthed(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [fetchSubscribers]);
 
   useEffect(() => {
     if (!authed) return;
@@ -113,37 +150,54 @@ export default function AdminPage() {
   /* ── Actions ──────────────────────────────────────────────────────── */
   async function deleteSubscriber(id: string, email: string) {
     if (!confirm(`Delete subscriber ${email}?`)) return;
-    const s = secret || sessionStorage.getItem("adminSecret") || "";
-    const res = await fetch(`/api/admin/subscribers?secret=${encodeURIComponent(s)}`, {
+    const res = await fetch("/api/admin/subscribers", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
+    if (res.status === 401) {
+      handleUnauthorized();
+      return;
+    }
     if (res.ok) setSubscribers((prev) => prev.filter((x) => x.id !== id));
   }
 
   async function deleteUser(id: string, email: string | undefined) {
     if (!confirm(`Delete auth user ${email ?? id}?`)) return;
-    const s = secret || sessionStorage.getItem("adminSecret") || "";
-    const res = await fetch(
-      `/api/admin/users?secret=${encodeURIComponent(s)}&id=${encodeURIComponent(id)}`,
-      { method: "DELETE" }
-    );
+    const res = await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, email }),
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      return;
+    }
     if (res.ok) setUsers((prev) => prev.filter((x) => x.id !== id));
   }
 
   async function markMessageRead(id: string) {
-    const s = secret || sessionStorage.getItem("adminSecret") || "";
-    const res = await fetch(`/api/admin/messages?secret=${encodeURIComponent(s)}`, {
+    const res = await fetch("/api/admin/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, read: true }),
     });
+    if (res.status === 401) {
+      handleUnauthorized();
+      return;
+    }
     if (res.ok) {
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, read: true } : m))
       );
     }
+  }
+
+  async function logout() {
+    await fetch("/api/admin/auth", { method: "DELETE" });
+    setAuthed(false);
+    setError("");
+    setSecret("");
   }
 
   /* ── Login Screen ─────────────────────────────────────────────────── */
@@ -197,6 +251,12 @@ export default function AdminPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <h1 className="text-white font-bold">Admin Panel</h1>
           <div className="flex items-center gap-3">
+            <button
+              onClick={logout}
+              className="text-xs bg-[#1e2d4a] hover:bg-[#263a5e] text-slate-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Sign out
+            </button>
             <button
               onClick={() => {
                 if (tab === "subscribers") fetchSubscribers();
